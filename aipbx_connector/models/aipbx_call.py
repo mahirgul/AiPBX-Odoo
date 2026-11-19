@@ -61,6 +61,8 @@ class AipbxCall(models.Model):
             return self.env["res.partner"]
         Partner = self.env["res.partner"]
         cols = [f for f in ("phone", "mobile") if f in Partner._fields and Partner._fields[f].store]
+        if not cols:
+            return Partner
         where = " OR ".join(
             f"right(regexp_replace(coalesce({c}, ''), '\\D', '', 'g'), %s) = %s" for c in cols)
         params = []
