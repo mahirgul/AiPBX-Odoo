@@ -45,7 +45,7 @@ class AipbxCall(models.Model):
     ai_qa_score = fields.Integer("Quality score")
     ai_sentiment = fields.Char("Mood")
 
-    _sql_constraints = [("linkedid_unique", "unique(connection_id, linkedid)", "One record per call.")]
+    _linkedid_unique = models.Constraint("unique(connection_id, linkedid)", "One record per call.")
 
     def _compute_display_number(self):
         for rec in self:

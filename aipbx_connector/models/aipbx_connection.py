@@ -103,7 +103,7 @@ class AipbxConnection(models.Model):
     extension_ids = fields.One2many("aipbx.extension", "connection_id", "Extensions")
     outside_key = fields.Boolean(compute="_compute_outside_key")
 
-    _sql_constraints = [("uuid_unique", "unique(connection_uuid)", "This connection pack is already in use.")]
+    _uuid_unique = models.Constraint("unique(connection_uuid)", "This connection pack is already in use.")
 
     def _check_manager(self):
         if not self.env.su:

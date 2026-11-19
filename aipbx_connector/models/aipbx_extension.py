@@ -15,4 +15,4 @@ class AipbxExtension(models.Model):
     user_id = fields.Many2one("res.users", "Odoo user", index=True,
                               help="Calls offered to this extension pop up for this user; their click-to-call rings it.")
 
-    _sql_constraints = [("ext_unique", "unique(connection_id, extension)", "This extension is already listed.")]
+    _ext_unique = models.Constraint("unique(connection_id, extension)", "This extension is already listed.")

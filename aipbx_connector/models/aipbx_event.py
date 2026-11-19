@@ -25,7 +25,7 @@ class AipbxEvent(models.Model):
     attempts = fields.Integer()
     error = fields.Char()
 
-    _sql_constraints = [("event_unique", "unique(connection_id, event_id)", "This event was received already.")]
+    _event_unique = models.Constraint("unique(connection_id, event_id)", "This event was received already.")
 
     def _process(self):
         for rec in self:

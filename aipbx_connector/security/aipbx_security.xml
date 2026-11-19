@@ -4,15 +4,19 @@
         <field name="name">AiPBX</field>
         <field name="sequence">60</field>
     </record>
+    <record id="privilege_aipbx" model="res.groups.privilege">
+        <field name="name">AiPBX</field>
+        <field name="category_id" ref="module_category_aipbx"/>
+    </record>
     <record id="group_aipbx_user" model="res.groups">
         <field name="name">User: own calls</field>
-        <field name="category_id" ref="module_category_aipbx"/>
+        <field name="privilege_id" ref="privilege_aipbx"/>
     </record>
     <record id="group_aipbx_manager" model="res.groups">
         <field name="name">Administrator: all calls and the connection</field>
-        <field name="category_id" ref="module_category_aipbx"/>
+        <field name="privilege_id" ref="privilege_aipbx"/>
         <field name="implied_ids" eval="[(4, ref('group_aipbx_user'))]"/>
-        <field name="users" eval="[(4, ref('base.user_root')), (4, ref('base.user_admin'))]"/>
+        <field name="user_ids" eval="[(4, ref('base.user_root')), (4, ref('base.user_admin'))]"/>
     </record>
     <record id="base.group_user" model="res.groups">
         <field name="implied_ids" eval="[(4, ref('group_aipbx_user'))]"/>
