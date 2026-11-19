@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_aipbx_pack_wizard" model="ir.ui.view">
+        <field name="name">aipbx.pack.wizard.form</field>
+        <field name="model">aipbx.pack.wizard</field>
+        <field name="arch" type="xml">
+            <form string="Connection pack">
+                <p>On the PBX: Integration &gt; Connections &gt; New connection (kind Odoo, this Odoo's address). Paste the pack it shows here.</p>
+                <field name="connection_id" invisible="1"/>
+                <field name="pack" nolabel="1" placeholder='{"aipbx_connection": 1, ...}'/>
+                <footer>
+                    <button name="action_apply" type="object" string="Connect" class="btn-primary"/>
+                    <button string="Cancel" special="cancel"/>
+                </footer>
+            </form>
+        </field>
+    </record>
+</odoo>

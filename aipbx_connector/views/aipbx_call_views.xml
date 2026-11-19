@@ -1,0 +1,116 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_aipbx_call_tree" model="ir.ui.view">
+        <field name="name">aipbx.call.tree</field>
+        <field name="model">aipbx.call</field>
+        <field name="arch" type="xml">
+            <tree create="0" decoration-danger="outcome in ('missed', 'abandoned')" decoration-muted="state != 'done'">
+                <field name="started_at"/>
+                <field name="direction"/>
+                <field name="number"/>
+                <field name="partner_id"/>
+                <field name="queue" optional="hide"/>
+                <field name="user_id"/>
+                <field name="outcome"/>
+                <field name="wait_seconds" optional="show"/>
+                <field name="talk_seconds"/>
+                <field name="state" optional="hide"/>
+                <field name="recording_id" column_invisible="True"/>
+                <button name="action_play_recording" type="object" icon="fa-play-circle" title="Listen" invisible="not recording_id"/>
+            </tree>
+        </field>
+    </record>
+
+    <record id="view_aipbx_call_form" model="ir.ui.view">
+        <field name="name">aipbx.call.form</field>
+        <field name="model">aipbx.call</field>
+        <field name="arch" type="xml">
+            <form create="0" edit="0">
+                <header>
+                    <button name="action_play_recording" type="object" string="Listen to the recording" invisible="not recording_id"/>
+                    <field name="state" widget="statusbar"/>
+                </header>
+                <sheet>
+                    <group>
+                        <group>
+                            <field name="direction"/>
+                            <field name="number"/>
+                            <field name="caller_name"/>
+                            <field name="partner_id"/>
+                            <field name="did"/>
+                            <field name="queue"/>
+                        </group>
+                        <group>
+                            <field name="outcome"/>
+                            <field name="user_id"/>
+                            <field name="agent_extension"/>
+                            <field name="offered_user_ids" widget="many2many_tags"/>
+                            <field name="started_at"/>
+                            <field name="answered_at"/>
+                            <field name="ended_at"/>
+                            <field name="wait_seconds"/>
+                            <field name="talk_seconds"/>
+                            <field name="recording_id" invisible="1"/>
+                        </group>
+                    </group>
+                    <notebook>
+                        <page string="AI analysis" invisible="not ai_summary and not ai_transcript and not ai_qa_score and not ai_sentiment">
+                            <group>
+                                <field name="ai_summary"/>
+                                <field name="ai_qa_score"/>
+                                <field name="ai_sentiment"/>
+                            </group>
+                            <field name="ai_transcript"/>
+                        </page>
+                    </notebook>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="view_aipbx_call_search" model="ir.ui.view">
+        <field name="name">aipbx.call.search</field>
+        <field name="model">aipbx.call</field>
+        <field name="arch" type="xml">
+            <search>
+                <field name="number"/>
+                <field name="partner_id"/>
+                <field name="user_id"/>
+                <filter name="mine" string="My calls" domain="['|', ('user_id', '=', uid), ('offered_user_ids', 'in', [uid])]"/>
+                <filter name="missed" string="Missed" domain="[('outcome', 'in', ('missed', 'abandoned'))]"/>
+                <filter name="inbound" string="Inbound" domain="[('direction', '=', 'inbound')]"/>
+                <filter name="outbound" string="Outbound" domain="[('direction', '=', 'outbound')]"/>
+                <separator/>
+                <filter name="by_user" string="Answered by" context="{'group_by': 'user_id'}"/>
+                <filter name="by_day" string="Day" context="{'group_by': 'started_at:day'}"/>
+            </search>
+        </field>
+    </record>
+
+    <record id="action_aipbx_call" model="ir.actions.act_window">
+        <field name="name">Calls</field>
+        <field name="res_model">aipbx.call</field>
+        <field name="view_mode">tree,form</field>
+        <field name="context">{'search_default_mine': 1}</field>
+    </record>
+
+    <record id="view_aipbx_event_tree" model="ir.ui.view">
+        <field name="name">aipbx.event.tree</field>
+        <field name="model">aipbx.event</field>
+        <field name="arch" type="xml">
+            <tree create="0" decoration-danger="state == 'failed'">
+                <field name="create_date"/>
+                <field name="event"/>
+                <field name="event_id"/>
+                <field name="state"/>
+                <field name="attempts"/>
+                <field name="error"/>
+            </tree>
+        </field>
+    </record>
+    <record id="action_aipbx_event" model="ir.actions.act_window">
+        <field name="name">Received events</field>
+        <field name="res_model">aipbx.event</field>
+        <field name="view_mode">tree,form</field>
+    </record>
+</odoo>

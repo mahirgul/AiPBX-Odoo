@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_partner_form_aipbx" model="ir.ui.view">
+        <field name="name">res.partner.form.aipbx</field>
+        <field name="model">res.partner</field>
+        <field name="inherit_id" ref="base.view_partner_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//div[@name='button_box']" position="inside">
+                <button name="action_aipbx_calls" type="object" class="oe_stat_button" icon="fa-phone" groups="aipbx_connector.group_aipbx_user">
+                    <field name="aipbx_call_count" widget="statinfo" string="Calls"/>
+                </button>
+            </xpath>
+            <xpath expr="//field[@name='phone']" position="after">
+                <button name="action_aipbx_call" type="object" string="Call" icon="fa-phone" class="btn-link"
+                        invisible="not phone" groups="aipbx_connector.group_aipbx_user"/>
+            </xpath>
+        </field>
+    </record>
+</odoo>

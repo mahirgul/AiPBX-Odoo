@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <menuitem id="menu_aipbx_root" name="AiPBX" web_icon="aipbx_connector,static/description/icon.png" groups="group_aipbx_user" sequence="60"/>
+    <menuitem id="menu_aipbx_calls" name="Calls" parent="menu_aipbx_root" action="action_aipbx_call" sequence="10"/>
+    <menuitem id="menu_aipbx_config" name="Configuration" parent="menu_aipbx_root" groups="group_aipbx_manager" sequence="90"/>
+    <menuitem id="menu_aipbx_connections" name="Connections" parent="menu_aipbx_config" action="action_aipbx_connection" sequence="10"/>
+    <menuitem id="menu_aipbx_events" name="Received events" parent="menu_aipbx_config" action="action_aipbx_event" sequence="20"/>
+</odoo>

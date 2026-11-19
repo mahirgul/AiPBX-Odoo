@@ -1,0 +1,40 @@
+<section class="oe_container">
+    <div class="oe_row oe_spaced">
+        <h2 class="oe_slogan">AiPBX Connector</h2>
+        <h3 class="oe_slogan">Your AiPBX phone system inside Odoo</h3>
+        <p class="oe_mt32">Connects Odoo to an <a href="https://aipbx.bid">AiPBX</a> phone system
+        (open source, Asterisk based). Calls go through the PBX as always; Odoo learns about them and
+        can start them. If Odoo is down, nobody's phone stops working.</p>
+    </div>
+</section>
+<section class="oe_container oe_dark">
+    <div class="oe_row oe_spaced">
+        <ul>
+            <li><b>Click-to-call</b>: the Call button next to a contact's phone rings your own phone (desk phone, web phone or app), then dials the number.</li>
+            <li><b>Caller pop-up</b>: when a call rings at your extension - directly, from a queue or a ring group - Odoo shows who is calling, with the contact one click away. Only the user whose phone rings sees it.</li>
+            <li><b>Call log</b>: one record per call, however many phones rang: direction, who answered, wait and talk time, outcome (answered, missed, gave up in the queue).</li>
+            <li><b>Chatter</b>: one line per call on the contact; the recording is played through Odoo for users allowed to see the call. Recordings stay on the PBX.</li>
+            <li><b>Missed calls</b> from known contacts become a call-back activity.</li>
+            <li><b>AI summary</b>: when the PBX analyses the call, the summary and the quality score are added to the contact (and the call).</li>
+            <li><b>CRM</b>: with the CRM app, calls also land on the contact's open opportunity (the <i>AiPBX Connector - CRM</i> part installs by itself).</li>
+            <li><b>Contacts to the PBX</b> (optional): desk phones show the caller's name from Odoo.</li>
+        </ul>
+    </div>
+</section>
+<section class="oe_container">
+    <div class="oe_row oe_spaced">
+        <h3>Setup</h3>
+        <ol>
+            <li>In Odoo: AiPBX &gt; Configuration &gt; Connections &gt; New. Save it.</li>
+            <li>On the PBX: Integration &gt; Connections &gt; New connection, kind <i>Odoo</i>, with this Odoo's address.</li>
+            <li>Copy the connection pack the PBX shows and paste it in Odoo (<i>Paste connection pack</i>). The extensions come in; users are matched by e-mail, the rest you choose.</li>
+        </ol>
+        <h3>Security</h3>
+        <ul>
+            <li>Each connection has its own PBX key with only the rights a CRM needs, and its own webhook secret. Both are stored encrypted; set <code>aipbx_secret_key</code> in the Odoo configuration file to keep the encryption key outside the database.</li>
+            <li>Every event from the PBX is signed (HMAC-SHA256 with a timestamp) and stored once; a repeated delivery is not processed twice.</li>
+            <li>The browser never gets the PBX key. Click-to-call uses the extension assigned to the signed-in user, not a value from the browser.</li>
+        </ul>
+        <p>Requires AiPBX with Integration &gt; Connections. Self-hosted Odoo or Odoo.sh (Odoo Online cannot install apps from the store). Source and issues: <a href="https://github.com/mahirgul/AiPBX-Odoo">github.com/mahirgul/AiPBX-Odoo</a>.</p>
+    </div>
+</section>

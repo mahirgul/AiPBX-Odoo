@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_aipbx_call_tree_crm" model="ir.ui.view">
+        <field name="name">aipbx.call.tree.crm</field>
+        <field name="model">aipbx.call</field>
+        <field name="inherit_id" ref="aipbx_connector.view_aipbx_call_tree"/>
+        <field name="arch" type="xml">
+            <field name="partner_id" position="after">
+                <field name="lead_id" optional="show"/>
+            </field>
+        </field>
+    </record>
+    <record id="view_aipbx_call_form_crm" model="ir.ui.view">
+        <field name="name">aipbx.call.form.crm</field>
+        <field name="model">aipbx.call</field>
+        <field name="inherit_id" ref="aipbx_connector.view_aipbx_call_form"/>
+        <field name="arch" type="xml">
+            <field name="partner_id" position="after">
+                <field name="lead_id"/>
+            </field>
+        </field>
+    </record>
+</odoo>

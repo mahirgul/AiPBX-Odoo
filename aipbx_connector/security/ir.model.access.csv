@@ -1,0 +1,8 @@
+id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
+access_aipbx_connection_manager,aipbx.connection manager,model_aipbx_connection,group_aipbx_manager,1,1,1,1
+access_aipbx_extension_user,aipbx.extension user,model_aipbx_extension,group_aipbx_user,1,0,0,0
+access_aipbx_extension_manager,aipbx.extension manager,model_aipbx_extension,group_aipbx_manager,1,1,1,1
+access_aipbx_call_user,aipbx.call user,model_aipbx_call,group_aipbx_user,1,0,0,0
+access_aipbx_call_manager,aipbx.call manager,model_aipbx_call,group_aipbx_manager,1,1,1,1
+access_aipbx_event_manager,aipbx.event manager,model_aipbx_event,group_aipbx_manager,1,1,0,1
+access_aipbx_pack_wizard_manager,aipbx.pack.wizard manager,model_aipbx_pack_wizard,group_aipbx_manager,1,1,1,1
