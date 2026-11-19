@@ -12,7 +12,7 @@ class AipbxCall(models.Model):
     def _match_lead(self, partner, number, company):
         """The contact's only open opportunity; without a contact, the only open one with the number."""
         Lead = self.env["crm.lead"].sudo()
-        open_domain = [("active", "=", True), ("stage_id.is_won", "=", False),
+        open_domain = [("active", "=", True), "|", ("stage_id", "=", False), ("stage_id.is_won", "=", False),
                        "|", ("company_id", "=", False), ("company_id", "=", company.id)]
         if partner:
             leads = Lead.search([("partner_id", "child_of", partner.commercial_partner_id.id)] + open_domain, limit=2)
