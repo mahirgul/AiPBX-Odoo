@@ -54,9 +54,10 @@
                         </group>
                     </group>
                     <notebook>
-                        <page string="AI analysis" invisible="not ai_summary and not ai_transcript and not ai_qa_score and not ai_sentiment">
+                        <page string="AI analysis" invisible="not ai_summary and not ai_transcript and not ai_has_qa_score and not ai_qa_score and not ai_sentiment">
                             <group>
                                 <field name="ai_summary"/>
+                                <field name="ai_has_qa_score" invisible="1"/>
                                 <field name="ai_qa_score"/>
                                 <field name="ai_sentiment"/>
                             </group>

@@ -11,7 +11,8 @@ class AipbxPackWizard(models.TransientModel):
 
     def action_apply(self):
         self.ensure_one()
-        self.connection_id._apply_pack(self.pack)
-        self.pack = False
-        self.connection_id.action_sync_extensions()
+        connection = self.connection_id
+        connection._apply_pack(self.pack)
+        connection.action_sync_extensions()
+        self.unlink()
         return {"type": "ir.actions.act_window_close"}

@@ -43,6 +43,7 @@ class AipbxCall(models.Model):
     ai_summary = fields.Text("AI summary")
     ai_transcript = fields.Text("Transcript")
     ai_qa_score = fields.Integer("Quality score")
+    ai_has_qa_score = fields.Boolean(default=False, help="Whether an AI quality score was provided (distinguishes 0 from absent).")
     ai_sentiment = fields.Char("Mood")
 
     _linkedid_unique = models.Constraint("unique(connection_id, linkedid)", "One record per call.")
@@ -239,7 +240,7 @@ class AipbxCall(models.Model):
     def _post_ai_summary(self, show_zero=False):
         if not self.ai_summary:
             return
-        show_score = bool(self.ai_qa_score) or show_zero
+        show_score = bool(self.ai_qa_score) or bool(self.ai_has_qa_score) or show_zero
         extra = Markup(" · {} {}/100").format(escape(_("quality")), self.ai_qa_score) if show_score else ""
         self._post(Markup("<p>🤖 {}{}</p>").format(escape(self.ai_summary), extra))
 
@@ -260,7 +261,7 @@ class AipbxCall(models.Model):
             body += Markup('<p><a href="/aipbx/recording/{}">{}</a></p>').format(self.id, escape(_("Listen to the recording")))
         self._post(body)
         if self.ai_summary:
-            self._post_ai_summary()
+            self._post_ai_summary(show_zero=self.ai_has_qa_score)
         if self.partner_id and self.direction == "inbound" and self.outcome in ("missed", "abandoned"):
             user = self.offered_user_ids[:1] or self.connection_id.missed_call_user_id
             if user:
@@ -283,6 +284,7 @@ class AipbxCall(models.Model):
             "ai_summary": data.get("summary") or False,
             "ai_transcript": data.get("transcript") or False,
             "ai_qa_score": int(score) if has_score else 0,
+            "ai_has_qa_score": has_score,
             "ai_sentiment": data.get("qa_sentiment") or False,
         })
         if data.get("summary") and self.logged and not had_summary:
