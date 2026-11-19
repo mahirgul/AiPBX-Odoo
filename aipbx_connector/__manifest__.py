@@ -1,6 +1,6 @@
 {
     "name": "AiPBX Connector",
-    "version": "17.0.1.0.0",
+    "version": "18.0.1.0.0",
     "category": "Productivity/VoIP",
     "summary": "Click-to-call, caller pop-up and call log for the AiPBX phone system",
     "description": """

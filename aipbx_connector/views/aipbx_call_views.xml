@@ -4,7 +4,7 @@
         <field name="name">aipbx.call.tree</field>
         <field name="model">aipbx.call</field>
         <field name="arch" type="xml">
-            <tree create="0" decoration-danger="outcome in ('missed', 'abandoned')" decoration-muted="state != 'done'">
+            <list create="0" decoration-danger="outcome in ('missed', 'abandoned')" decoration-muted="state != 'done'">
                 <field name="started_at"/>
                 <field name="direction"/>
                 <field name="number"/>
@@ -17,7 +17,7 @@
                 <field name="state" optional="hide"/>
                 <field name="recording_id" column_invisible="True"/>
                 <button name="action_play_recording" type="object" icon="fa-play-circle" title="Listen" invisible="not recording_id"/>
-            </tree>
+            </list>
         </field>
     </record>
 
@@ -90,7 +90,7 @@
     <record id="action_aipbx_call" model="ir.actions.act_window">
         <field name="name">Calls</field>
         <field name="res_model">aipbx.call</field>
-        <field name="view_mode">tree,form</field>
+        <field name="view_mode">list,form</field>
         <field name="context">{'search_default_mine': 1}</field>
     </record>
 
@@ -98,19 +98,19 @@
         <field name="name">aipbx.event.tree</field>
         <field name="model">aipbx.event</field>
         <field name="arch" type="xml">
-            <tree create="0" decoration-danger="state == 'failed'">
+            <list create="0" decoration-danger="state == 'failed'">
                 <field name="create_date"/>
                 <field name="event"/>
                 <field name="event_id"/>
                 <field name="state"/>
                 <field name="attempts"/>
                 <field name="error"/>
-            </tree>
+            </list>
         </field>
     </record>
     <record id="action_aipbx_event" model="ir.actions.act_window">
         <field name="name">Received events</field>
         <field name="res_model">aipbx.event</field>
-        <field name="view_mode">tree,form</field>
+        <field name="view_mode">list,form</field>
     </record>
 </odoo>
