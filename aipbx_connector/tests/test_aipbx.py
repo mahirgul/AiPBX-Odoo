@@ -4,12 +4,14 @@ import json
 import os
 import time
 import uuid
+from threading import Event
+from types import SimpleNamespace
 from unittest.mock import patch
 
 from odoo.exceptions import AccessError, UserError
 from odoo.tests import HttpCase, TransactionCase, tagged
 
-from ..models import tools
+from ..models import aipbx_connection, tools
 
 SECRET = "whsec_test"
 
@@ -153,26 +155,46 @@ class TestAipbxCalls(TransactionCase, Common):
 
     def test_contacts_go_to_the_pbx_address_book_and_bad_ones_are_skipped(self):
         self.conn.push_contacts = True
-        self.env["res.partner"].create({"name": "No digits", "phone": "n/a"})
-        bad = self.env["res.partner"].create({"name": "Refused", "phone": "0212 000 00 00"})
-        sent = []
+        Partner = self.env["res.partner"]
+        Partner.create({"name": "No digits", "phone": "n/a"})
+        Partner.create({"name": "Refused", "phone": "0212 000 00 00"})
+        localized = Partner.create({"name": "Localized phone", "phone": "١٢٣٤"})
+        retry = Partner.create({"name": "Retry once", "phone": "4567"})
+        Partner.create({"name": "After retry", "phone": "6789"})
+        sent = {}
+        rejected = []
+        retry_attempts = []
 
-        def fake_api(conn, method, path, params=None, payload=None, stream=False):
-            if payload["display_name"] == "Refused":
-                from odoo.exceptions import UserError
-                raise UserError("refused")
-            sent.append(payload)
-            return {"success": True}
+        def fake_request(method, url, *, json, **kwargs):
+            name = json["display_name"]
+            if name == "Refused":
+                rejected.append(name)
+                return SimpleNamespace(status_code=422, json=lambda: {
+                    "success": False, "error": {"code": "VALIDATION_ERROR", "message": "invalid contact"},
+                })
+            if name == "Retry once":
+                retry_attempts.append(name)
+                if len(retry_attempts) == 1:
+                    return SimpleNamespace(status_code=503, json=lambda: {
+                        "success": False, "error": {"code": "UNAVAILABLE", "message": "retry later"},
+                    })
+            sent[name] = json
+            return SimpleNamespace(status_code=201, json=lambda: {"success": True})
 
-        with patch.object(type(self.conn), "_api", fake_api):
+        with patch.object(aipbx_connection, "_validate_pbx_url", return_value=self.conn.pbx_url), \
+             patch.object(aipbx_connection.requests, "request", fake_request):
             self.env["aipbx.connection"]._cron_push_contacts()
-        names = [p["display_name"] for p in sent]
-        self.assertIn("Kemal Kaya", names)
-        self.assertNotIn("No digits", names)
-        self.assertTrue(self.conn.contacts_synced_at, "one refused contact does not stop the sync")
-        kemal = [p for p in sent if p["display_name"] == "Kemal Kaya"][0]
-        self.assertTrue(kemal["external_id"].endswith(":%d" % self.partner.id))
-        self.assertTrue(bad)
+            self.assertEqual(self.conn.contacts_synced_id, localized.id)
+            self.assertNotIn("After retry", sent)
+            self.env["aipbx.connection"]._cron_push_contacts()
+
+        self.assertNotIn("No digits", sent)
+        self.assertEqual(sent["Localized phone"]["numbers"], [{"label": "work", "number": "1234"}])
+        self.assertEqual(rejected, ["Refused"])
+        self.assertEqual(retry_attempts, ["Retry once", "Retry once"])
+        self.assertIn("After retry", sent)
+        self.assertTrue(sent["Kemal Kaya"]["external_id"].endswith(":%d" % self.partner.id))
+        self.assertTrue(sent["Retry once"]["external_id"].endswith(":%d" % retry.id))
 
     def test_users_see_only_their_own_calls(self):
         other = self.env["res.users"].with_context(no_reset_password=True).create({"name": "Other", "login": "other_aipbx@example.com"})
@@ -265,11 +287,18 @@ class TestAipbxCalls(TransactionCase, Common):
         with self.assertRaises(AccessError):
             self.partner.with_user(portal_u).action_aipbx_call()
 
-        # Pack wizard clears self.pack right after applying.
-        wiz = self.env["aipbx.pack.wizard"].create({"connection_id": self.conn.id, "pack": pack(str(uuid.uuid4()))})
-        with patch.object(type(self.conn), "action_sync_extensions", lambda s: None):
-            wiz.action_apply()
-        self.assertFalse(wiz.pack)
+        # The manager can apply a pack and sync extensions without retaining the wizard.
+        connection_uuid = str(uuid.uuid4())
+        wiz = self.env["aipbx.pack.wizard"].with_user(mgr_a).create({
+            "connection_id": self.conn.id, "pack": pack(connection_uuid),
+        })
+        with patch.object(type(self.conn), "_api", return_value={"data": [{"extension": "19013"}]}):
+            action = wiz.action_apply()
+        self.env.flush_all()
+        self.assertEqual(action["type"], "ir.actions.act_window_close")
+        self.assertEqual(self.conn.connection_uuid, connection_uuid)
+        self.assertIn("19013", self.conn.extension_ids.mapped("extension"))
+        self.assertFalse(wiz.exists())
 
         # action_aipbx_calls resets context.
         self.assertEqual(self.partner.action_aipbx_calls()["context"], {})
@@ -389,7 +418,7 @@ class TestAipbxWebhook(HttpCase, Common):
         self.agent.write({"password": "agent_aipbx_pw1"})
         self.authenticate("agent_aipbx@example.com", "agent_aipbx_pw1")
 
-        closed = []
+        closed = Event()
 
         class FakeResp:
             def __init__(self, status_code, ct):
@@ -400,7 +429,7 @@ class TestAipbxWebhook(HttpCase, Common):
                 yield b"MP3!"
 
             def close(self):
-                closed.append(True)
+                closed.set()
 
         with patch.object(type(self.conn), "_api", lambda *a, **kw: FakeResp(200, "text/html")):
             resp = self.url_open("/aipbx/recording/%d" % call.id)
@@ -410,10 +439,11 @@ class TestAipbxWebhook(HttpCase, Common):
         self.assertEqual(resp.headers.get("Content-Security-Policy"), "sandbox")
         self.assertEqual(resp.headers.get("Content-Disposition"), "inline")
         self.assertEqual(resp.headers.get("Content-Length"), "4")
-        self.assertTrue(closed)
+        self.assertEqual(resp.content, b"MP3!")
+        self.assertTrue(closed.wait(timeout=5))
 
         closed.clear()
         with patch.object(type(self.conn), "_api", lambda *a, **kw: FakeResp(502, "text/plain")):
             resp_err = self.url_open("/aipbx/recording/%d" % call.id)
         self.assertEqual(resp_err.status_code, 404)
-        self.assertTrue(closed)
+        self.assertTrue(closed.wait(timeout=5))
