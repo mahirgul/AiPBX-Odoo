@@ -21,7 +21,9 @@ book so desk phones show the caller's name.
 
 ## Install
 
-1. Put `aipbx_connector` in your addons path (or install it from the Odoo App Store) and install
+1. Put `aipbx_connector` in your addons path (or install it from the Odoo App Store:
+   [AiPBX Connector](https://apps.odoo.com/apps/modules/19.0/aipbx_connector),
+   [AiPBX Connector - CRM](https://apps.odoo.com/apps/modules/19.0/aipbx_connector_crm)) and install
    **AiPBX Connector**.
 2. Optional but recommended: set `aipbx_secret_key = <a long random string>` in the Odoo
    configuration file. The PBX key and webhook secret are encrypted with it; without it the
