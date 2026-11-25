@@ -42,8 +42,6 @@
                         </group>
                         <group>
                             <field name="missed_call_user_id"/>
-                            <field name="push_contacts"/>
-                            <field name="contacts_synced_at" invisible="not push_contacts"/>
                             <field name="last_event_at"/>
                             <field name="last_test_at"/>
                         </group>

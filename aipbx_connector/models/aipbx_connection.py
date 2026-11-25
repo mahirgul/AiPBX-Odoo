@@ -21,10 +21,6 @@ _BLOCKED_HOSTS = frozenset({
 })
 
 
-class PbxValidationError(UserError):
-    """A PBX request was received but rejected as invalid."""
-
-
 def _is_blocked_ip(ip):
     if getattr(ip, "ipv4_mapped", None) and _is_blocked_ip(ip.ipv4_mapped):
         return True
@@ -98,15 +94,6 @@ class AipbxConnection(models.Model):
         "res.users", "Missed calls go to",
         help="A missed inbound call from a known contact becomes a call-back activity for this user "
              "(or for the extension's user when the call rang one).")
-    push_contacts = fields.Boolean(
-        "Send contacts to the PBX address book",
-        help="Every few minutes, contacts with a phone number are sent to the PBX address book, so "
-             "desk phones and the PBX show the caller's name. Odoo stays the source; changes made "
-             "on the PBX side are overwritten.")
-    contacts_synced_at = fields.Datetime(readonly=True, copy=False)
-    # With contacts_synced_at: the last partner sent of a full page, so partners sharing
-    # that write_date (a bulk import) continue on the next run instead of being skipped.
-    contacts_synced_id = fields.Integer(readonly=True, copy=False)
     extension_ids = fields.One2many("aipbx.extension", "connection_id", "Extensions")
     outside_key = fields.Boolean(compute="_compute_outside_key")
 
@@ -215,8 +202,6 @@ class AipbxConnection(models.Model):
             if not isinstance(error, dict):
                 error = {}
             msg = error.get("message") or f"HTTP {resp.status_code}"
-            if resp.status_code == 422 and error.get("code") == "VALIDATION_ERROR":
-                raise PbxValidationError(_("The PBX refused the request: %s", msg))
             raise UserError(_("The PBX refused the request: %s", msg))
         return body
 
@@ -284,61 +269,6 @@ class AipbxConnection(models.Model):
         conn._api("POST", "calls/originate", payload={
             "from_extension": ext.extension, "to_number": to, "client_request_id": str(uuid.uuid4())})
         return ext
-
-    # ------------------------------------------------------------------ contacts to the PBX
-
-    @api.model
-    def _cron_push_contacts(self):
-        db_uuid = self.env["ir.config_parameter"].sudo().get_param("database.uuid", "")
-        Partner = self.env["res.partner"].sudo()
-        phone_fields = [f for f in ("phone", "mobile") if f in Partner._fields]
-        if not phone_fields:
-            return
-        for rec in self.search([("push_contacts", "=", True), ("state", "=", "ready")]):
-            domain = ["|"] * (len(phone_fields) - 1) + [(f, "!=", False) for f in phone_fields]
-            if rec.contacts_synced_at:
-                after = ["|", ("write_date", ">", rec.contacts_synced_at),
-                         "&", ("write_date", "=", rec.contacts_synced_at), ("id", ">", rec.contacts_synced_id)]
-                domain = ["&"] + after + domain
-            domain = ["&", ("active", "=", True), "&", "|", ("company_id", "=", False), ("company_id", "=", rec.company_id.id)] + domain
-            started = fields.Datetime.now()
-            last_processed = None
-            partners = Partner.search(domain, limit=500, order="write_date asc, id asc")
-            for partner in partners:
-                numbers = []
-                for field in phone_fields:
-                    # The PBX accepts ASCII digits; preserve the formatting around them.
-                    number = "".join(str(int(c)) if c.isdecimal() else c for c in (partner[field] or ""))
-                    if len(tools.digits(number)) >= 3:
-                        numbers.append({"label": "mobile" if field == "mobile" else "work", "number": number})
-                if not numbers:
-                    last_processed = partner
-                    continue  # nothing the PBX could match
-                try:
-                    rec._api("POST", "contacts", payload={
-                        "display_name": partner.name or numbers[0]["number"],
-                        "company": partner.parent_id.name or "" if partner.parent_id else "",
-                        "email": tools.clean_email(partner.email),
-                        "external_id": f"odoo:{db_uuid}:{partner.id}",
-                        "numbers": numbers,
-                    })
-                    last_processed = partner
-                except PbxValidationError as e:
-                    _logger.warning("AiPBX contact push: partner %s rejected; skipping: %s", partner.id, e)
-                    last_processed = partner
-                except UserError as e:
-                    _logger.warning("AiPBX contact push: partner %s not sent; will retry: %s", partner.id, e)
-                    if last_processed:
-                        rec.sudo().write({
-                            "contacts_synced_at": last_processed.write_date,
-                            "contacts_synced_id": last_processed.id,
-                        })
-                    break
-            else:
-                if len(partners) == 500:
-                    rec.sudo().write({"contacts_synced_at": partners[-1].write_date, "contacts_synced_id": partners[-1].id})
-                else:
-                    rec.sudo().write({"contacts_synced_at": started, "contacts_synced_id": 0})
 
     def _notify(self, message, kind="success"):
         return {"type": "ir.actions.client", "tag": "display_notification",
