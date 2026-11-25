@@ -2,8 +2,8 @@
 
 Connects Odoo to an [AiPBX](https://github.com/mahirgul/AiPBX) phone system: click-to-call,
 a caller pop-up for the user whose phone rings, one call record per call with the recording,
-missed calls as call-back activities, and the PBX's AI call summary on the contact. Optionally sends Odoo contacts to the PBX address
-book so desk phones show the caller's name.
+missed calls as call-back activities, and the PBX's AI call summary on the contact. The PBX looks up
+callers directly in Odoo on demand, so no full contact sync is required.
 
 | Branch | Odoo |
 |---|---|

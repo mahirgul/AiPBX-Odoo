@@ -1,6 +1,6 @@
 {
     "name": "AiPBX Connector",
-    "version": "18.0.1.0.0",
+    "version": "18.0.1.0.1",
     "category": "Productivity/VoIP",
     "summary": "Click-to-call, caller pop-up and call log for the AiPBX phone system",
     "description": """
@@ -10,7 +10,7 @@ Connects Odoo to an AiPBX phone system (https://aipbx.bid):
 * Caller pop-up: when a call rings at your extension, Odoo shows who calls with a link to the contact.
 * Call log: every call once, with direction, wait and talk time, outcome and the recording.
 * Missed calls become a call-back activity.
-* Optionally sends your contacts to the PBX address book, so desk phones show the caller's name.
+* On-demand caller lookup: the PBX looks up callers in Odoo in real time without syncing contacts.
 
 Create a connection on the PBX (Integration > Connections, kind Odoo) and paste the
 connection pack in AiPBX > Configuration > Connections.

@@ -5,13 +5,12 @@ import os
 import time
 import uuid
 from threading import Event
-from types import SimpleNamespace
 from unittest.mock import patch
 
 from odoo.exceptions import AccessError, UserError
 from odoo.tests import HttpCase, TransactionCase, tagged
 
-from ..models import aipbx_connection, tools
+from ..models import tools
 
 SECRET = "whsec_test"
 
@@ -153,49 +152,6 @@ class TestAipbxCalls(TransactionCase, Common):
         self.assertEqual(sent["payload"]["to_number"], "+905321112233")
         self.assertTrue(sent["payload"]["client_request_id"])
 
-    def test_contacts_go_to_the_pbx_address_book_and_bad_ones_are_skipped(self):
-        self.conn.push_contacts = True
-        Partner = self.env["res.partner"]
-        Partner.create({"name": "No digits", "phone": "n/a"})
-        Partner.create({"name": "Refused", "phone": "0212 000 00 00"})
-        localized = Partner.create({"name": "Localized phone", "phone": "١٢٣٤"})
-        retry = Partner.create({"name": "Retry once", "phone": "4567"})
-        Partner.create({"name": "After retry", "phone": "6789"})
-        sent = {}
-        rejected = []
-        retry_attempts = []
-
-        def fake_request(method, url, *, json, **kwargs):
-            name = json["display_name"]
-            if name == "Refused":
-                rejected.append(name)
-                return SimpleNamespace(status_code=422, json=lambda: {
-                    "success": False, "error": {"code": "VALIDATION_ERROR", "message": "invalid contact"},
-                })
-            if name == "Retry once":
-                retry_attempts.append(name)
-                if len(retry_attempts) == 1:
-                    return SimpleNamespace(status_code=503, json=lambda: {
-                        "success": False, "error": {"code": "UNAVAILABLE", "message": "retry later"},
-                    })
-            sent[name] = json
-            return SimpleNamespace(status_code=201, json=lambda: {"success": True})
-
-        with patch.object(aipbx_connection, "_validate_pbx_url", return_value=self.conn.pbx_url), \
-             patch.object(aipbx_connection.requests, "request", fake_request):
-            self.env["aipbx.connection"]._cron_push_contacts()
-            self.assertEqual(self.conn.contacts_synced_id, localized.id)
-            self.assertNotIn("After retry", sent)
-            self.env["aipbx.connection"]._cron_push_contacts()
-
-        self.assertNotIn("No digits", sent)
-        self.assertEqual(sent["Localized phone"]["numbers"], [{"label": "work", "number": "1234"}])
-        self.assertEqual(rejected, ["Refused"])
-        self.assertEqual(retry_attempts, ["Retry once", "Retry once"])
-        self.assertIn("After retry", sent)
-        self.assertTrue(sent["Kemal Kaya"]["external_id"].endswith(":%d" % self.partner.id))
-        self.assertTrue(sent["Retry once"]["external_id"].endswith(":%d" % retry.id))
-
     def test_users_see_only_their_own_calls(self):
         other = self.env["res.users"].with_context(no_reset_password=True).create({"name": "Other", "login": "other_aipbx@example.com"})
         call = self.env["aipbx.call"].create({"connection_id": self.conn.id, "linkedid": "x1", "user_id": self.agent.id})
@@ -335,23 +291,6 @@ class TestAipbxCalls(TransactionCase, Common):
         self.assertEqual(ooo.state, "done")
         self.assertFalse(popped)
 
-    def test_contact_sync_skips_archived_and_strips_bad_email(self):
-        self.conn.push_contacts = True
-        self.env["res.partner"].create({"name": "Archived", "phone": "+90 532 999 00 00", "active": False})
-        self.env["res.partner"].create({"name": "Bad Email", "phone": "+90 532 888 00 00", "email": "not an email"})
-        sent = []
-
-        def fake_api(conn, method, path, params=None, payload=None, stream=False):
-            sent.append(payload)
-            return {"success": True}
-
-        with patch.object(type(self.conn), "_api", fake_api):
-            self.env["aipbx.connection"]._cron_push_contacts()
-        by_name = {p["display_name"]: p for p in sent}
-        self.assertNotIn("Archived", by_name)
-        self.assertIn("Bad Email", by_name)
-        self.assertEqual(by_name["Bad Email"]["email"], "")
-
 
 @tagged("post_install", "-at_install")
 class TestAipbxWebhook(HttpCase, Common):
@@ -406,6 +345,32 @@ class TestAipbxWebhook(HttpCase, Common):
         self.assertEqual(self._post_raw(json.dumps(env).encode(), headers={"X-AiPBX-Event": "webhook.test"}).status_code, 400)
         self.assertEqual(self._post_raw(b"x" * (256 * 1024 + 1)).status_code, 413)
         self.assertEqual(self.env["aipbx.event"].search_count([("event_id", "=", "e-2")]), 0)
+
+    def test_signed_on_demand_lookup(self):
+        def post_lookup(payload, secret=SECRET):
+            body = json.dumps(payload).encode()
+            ts = str(int(time.time()))
+            sig = "sha256=" + hmac.new(secret.encode(), ts.encode() + b"." + body, hashlib.sha256).hexdigest()
+            return self.url_open(
+                "/aipbx/lookup/%s" % self.uuid,
+                data=body,
+                headers={"Content-Type": "application/json", "X-AiPBX-Timestamp": ts, "X-AiPBX-Signature-256": sig},
+            )
+
+        self.assertEqual(post_lookup({"number": "05321112233"}, secret="wrong").status_code, 401)
+        r = post_lookup({"number": "+90 532 111 22 33"})
+        self.assertEqual(r.status_code, 200)
+        data = json.loads(r.content.decode())
+        self.assertTrue(data["found"])
+        self.assertEqual(data["partner_id"], self.partner.id)
+        self.assertIn("id=%d" % self.partner.id, data["url"])
+
+        r_miss = post_lookup({"number": "+90 555 000 99 88"})
+        self.assertEqual(r_miss.status_code, 200)
+        self.assertFalse(json.loads(r_miss.content.decode())["found"])
+
+        self.env["res.partner"].create({"name": "Same phone", "phone": self.partner.phone})
+        self.assertFalse(post_lookup({"number": "+90 532 111 22 33"}).json()["found"])
 
     def test_the_recording_needs_a_user_who_may_see_the_call(self):
         call = self.env["aipbx.call"].create({"connection_id": self.conn.id, "linkedid": "r1", "user_id": self.agent.id, "recording_id": 9})
