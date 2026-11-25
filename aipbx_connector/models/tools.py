@@ -1,6 +1,5 @@
 """Small helpers shared by the models: number matching, the secret box, webhook signatures."""
 import base64
-from email.utils import getaddresses
 import hashlib
 import hmac
 import logging
@@ -21,7 +20,6 @@ except ImportError:  # pragma: no cover
 _logger = logging.getLogger(__name__)
 MATCH_DIGITS = 10
 SIGNATURE_TOLERANCE = 300  # seconds either way
-_EMAIL_RE = re.compile(r"^[A-Za-z0-9.!#$%&'*+/=?^_`{|}~-]+@[A-Za-z0-9-]+(?:\.[A-Za-z0-9-]+)+$")
 
 
 def digits(number):
@@ -35,20 +33,6 @@ def match_key(number, length=MATCH_DIGITS):
     The same rule as the PBX address book (last 10 digits; shorter numbers whole)."""
     d = digits(number)
     return d[-length:] if length and len(d) > length else d
-
-
-def clean_email(value):
-    """Return a single valid email address, or '' when empty/invalid (PBX returns 422 on bad email)."""
-    raw = (value or "").strip()
-    if not raw:
-        return ""
-    addrs = getaddresses([raw])
-    if len(addrs) != 1:
-        return ""
-    addr = addrs[0][1].strip()
-    if not addr or len(addr) > 191 or ".." in addr or not _EMAIL_RE.fullmatch(addr):
-        return ""
-    return addr
 
 
 def check_record_access(record, mode="read"):

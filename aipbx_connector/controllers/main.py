@@ -85,6 +85,45 @@ class AipbxController(http.Controller):
         rec._process()
         return request.make_response("ok", status=200)
 
+    @http.route("/aipbx/lookup/<string:connection_uuid>", type="http", auth="none", methods=["POST"], csrf=False, save_session=False, readonly=True)
+    def lookup(self, connection_uuid, **_kw):
+        """Signed on-demand caller lookup for large directories (no full contact sync needed)."""
+        if not request.db:
+            return request.make_response("not found", status=404)
+        cl = request.httprequest.content_length
+        if cl is not None and cl > MAX_BODY:
+            return request.make_response("too large", status=413)
+        body = request.httprequest.get_data()
+        if len(body) > MAX_BODY:
+            return request.make_response("too large", status=413)
+        env = request.env(user=SUPERUSER_ID, su=True)
+        conn = env["aipbx.connection"].search([("connection_uuid", "=", connection_uuid), ("state", "=", "ready")], limit=1)
+        headers = request.httprequest.headers
+        if not conn or not tools.check_signature(conn._secret(), headers.get("X-AiPBX-Timestamp"), body,
+                                                 headers.get("X-AiPBX-Signature-256", "")):
+            return request.make_response("unauthorized", status=401)
+        try:
+            payload = json.loads(body.decode("utf-8"))
+        except (UnicodeDecodeError, ValueError):
+            return request.make_response("bad json", status=400)
+        if not isinstance(payload, dict) or not isinstance(payload.get("number"), str):
+            return request.make_response("bad json", status=400)
+
+        partners = env["aipbx.call"]._match_partners(payload["number"], conn.company_id)
+        if len(partners) != 1:
+            out = {"found": False}
+        else:
+            p = partners[0]
+            out = {
+                "found": True,
+                "partner_id": p.id,
+                "name": p.display_name or p.name or "",
+                "company": p.commercial_company_name or "",
+                "email": p.email or "",
+                "url": f"/web#id={p.id}&model=res.partner&view_type=form",
+            }
+        return request.make_response(json.dumps(out), headers=[("Content-Type", "application/json")])
+
     @http.route("/aipbx/recording/<int:call_id>", type="http", auth="user")
     def recording(self, call_id, **_kw):
         """The recording of a call the user may see, fetched by the server with the

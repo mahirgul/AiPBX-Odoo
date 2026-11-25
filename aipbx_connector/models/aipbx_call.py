@@ -54,6 +54,17 @@ class AipbxCall(models.Model):
 
     # ------------------------------------------------------------------ partner matching
 
+    def init(self):
+        """Index the last 10 digits of res.partner phone/mobile for <1 ms lookup on 150K+ contacts."""
+        Partner = self.env["res.partner"]
+        for col in ("phone", "mobile"):
+            if col in Partner._fields and Partner._fields[col].store:
+                idx = f"aipbx_res_partner_{col}_last{tools.MATCH_DIGITS}_idx"
+                self.env.cr.execute(
+                    f"CREATE INDEX IF NOT EXISTS {idx} ON res_partner "
+                    f"(right(regexp_replace(coalesce({col}, ''), '\\D', '', 'g'), {tools.MATCH_DIGITS}))"
+                )
+
     @api.model
     def _match_partners(self, number, company):
         """Contacts whose phone (or mobile) ends with the same digits: any spelling of a number."""
@@ -64,11 +75,16 @@ class AipbxCall(models.Model):
         cols = [f for f in ("phone", "mobile") if f in Partner._fields and Partner._fields[f].store]
         if not cols:
             return Partner
-        where = " OR ".join(
-            f"right(regexp_replace(coalesce({c}, ''), '\\D', '', 'g'), %s) = %s" for c in cols)
-        params = []
-        for _c in cols:
-            params += [len(key), key]
+        if len(key) == tools.MATCH_DIGITS:
+            where = " OR ".join(
+                f"right(regexp_replace(coalesce({c}, ''), '\\D', '', 'g'), {tools.MATCH_DIGITS}) = %s" for c in cols)
+            params = [key for _c in cols]
+        else:
+            where = " OR ".join(
+                f"right(regexp_replace(coalesce({c}, ''), '\\D', '', 'g'), %s) = %s" for c in cols)
+            params = []
+            for _c in cols:
+                params += [len(key), key]
         self.env.cr.execute(
             f"SELECT id FROM res_partner WHERE active AND ({where}) "
             f"AND (company_id IS NULL OR company_id = %s) ORDER BY is_company, id LIMIT 20",
